@@ -305,7 +305,7 @@ function LNS23opt(n_o, m_o, a_o, b_o, c_o; option="vide")
     return affectation
 end
 
-n,m,a,b,c = read_data("GAP/GAP-d801600.dat")
+n,m,a,b,c = read_data("GAP/GAP-a05100.dat")
 
 res = LNS23opt(n, m, a, b, c, option="glouton")
 println(res)
@@ -316,3 +316,96 @@ res = LNS23opt(n, m, a, b, c)
 println(res)
 msg = string("Résultat final ", evaluate(res, c))
 println(msg)
+
+function datafile_creation(n,m,a,b,c,res)
+    open("test/test.dat", "w") do io
+        # writing n
+        write(io, "n = $n;\n")
+        # writing m
+        write(io, "m = $m;\n")
+        # writing a
+        write(io, "a = [\n")
+        for i in 1:m
+            write(io, "[ ")
+            for j in a[:,i]
+                write(io, "$j ")
+            end
+            if i == m
+                write(io, "]\n")
+            else
+                write(io, "],\n")
+            end
+        end
+        write(io, "];\n")
+        # writing b
+        write(io, "b = [ ")
+        for i in b
+            write(io, "$i ")
+        end
+        write(io, "];\n")
+        # writing c
+        write(io, "c = [\n")
+        for i in 1:m
+            write(io, "[ ")
+            for j in c[:,i]
+                write(io, "$j ")
+            end
+            if i == m
+                write(io, "]\n")
+            else
+                write(io, "],\n")
+            end
+        end
+        write(io, "];\n")
+        # writing s (paterns)
+        write(io, "Patterns = [\n")
+        for i in 1:m
+            write(io, "{ < ")
+            write(io, "0 , ")
+            cost = 0
+            for j in 1:n
+                if res[j] == i
+                    cost += c[j,i]
+                end
+            end
+            write(io, "$cost, [ ")
+            for j in 1:n
+                bool = (res[j] == i)
+                if bool
+                    if j == n
+                        write(io, "1 ")
+                    else
+                        write(io, "1, ")
+                    end
+                else
+                    if j == n
+                        write(io, "0 ")
+                    else
+                        write(io, "0, ")
+                    end
+                end
+            end
+            write(io, "] ")
+            if i == m
+                write(io, "> }\n")
+            else
+                write(io, "> },\n")
+            end
+        end
+        write(io, "];\n")
+        # writing u
+        write(io, "u = [ ")
+        for i in 1:n
+            write(io, "0.0 ")
+        end
+        write(io, "];\n")
+        # writing v
+        write(io, "v = [ ")
+        for i in 1:m
+            write(io, "0.0 ")
+        end
+        write(io, "];\n")
+    end
+end
+
+datafile_creation(n,m,a,b,c,res)
