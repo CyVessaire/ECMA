@@ -19,11 +19,12 @@ int b[Rm] = ...;
 // Some simple default pattern are given initially in cutstock.dat
 tuple s {
    key int id;
+   int machine;
    int cost;
    int fill[Rn];
 }
 
-{s} Patterns[Rm] = ...;
+{s} Patterns = ...;
 
 // valeurs duales du problème.
 float u[Rn] = ...;
@@ -31,33 +32,34 @@ float v[Rm] = ...;
 
 
 // How many of each pattern is to be cut
-dvar float+ Cut[j in Rm][Patterns[j]] in 0..1;
-     
+dvar float+ Cut[Patterns] in 0..1;
+
 // Minimize cost : here each pattern as the same constant cost so that
 // we minimize the number of rolls used.     
 minimize
-  sum( j in Rm , p in Patterns[j]) 
-    p.cost * Cut[j][p];
+  sum(p in Patterns) 
+    p.cost * Cut[p];
 
 subject to {
   // Unique constraint in the master model is to cover the item demand.
   forall( i in Rn ) 
     ctTache:
-      sum(j in Rm, p in Patterns[j] ) 
-        p.fill[i] * Cut[j][p] == 1;
+      sum(p in Patterns) 
+        p.fill[i] * Cut[p] == 1;
   forall( j in Rm ) 
     ctMach:
-      sum( p in Patterns[j], i in Rn) 
-        p.fill[i] * Cut[j][p] <= 1;
+      sum(p in Patterns: p.machine == j) 
+        Cut[p] <= 1;
 }
 
 tuple r {
    int machine;
-   s p;
+   int cost;
    float cut;
+   int aff[Rn];
 };
 
-{r} Result = {<j, p ,Cut[j][p]> | j in Rm, p in Patterns[j] : Cut[j][p] > 1e-3};
+{r} Result = {<p.machine, p.cost ,Cut[p], p.fill> | p in Patterns : Cut[p] > 1e-3};
 // set dual values used to fill in the sub model.
 execute FillDuals {
   for(var i in Rn) {
@@ -70,6 +72,8 @@ execute FillDuals {
 
 // Output the current result
 execute DISPLAY_RESULT {
+   // writeln(u)
+   // writeln(v)
    writeln(Result);
 }
 
@@ -97,8 +101,14 @@ main {
    
    var best;
    var curr = Infinity;
-
-   while ( best != curr ) {
+   var Rm = masterOpl.Rm;
+   var Rn = masterOpl.Rn;
+   var c = masterOpl.c;
+	
+	
+   var itt = 0
+   while ( itt != 1000 ) {
+      itt += 1
       best = curr;
       writeln("Solve master.");
       if ( masterCplex.solve() ) {
@@ -116,9 +126,13 @@ main {
       
       // Using data elements from the master model.
       var subData = new IloOplDataElements();
-      subData.RollWidth = masterOpl.RollWidth;
-      subData.Size = masterOpl.Size;
-      subData.Duals = masterOpl.Duals;     
+      subData.n = masterOpl.n;
+      subData.m = masterOpl.m;
+      subData.a = masterOpl.a;
+      subData.b = masterOpl.b;
+      subData.c = masterOpl.c;
+      subData.u = masterOpl.u;
+      subData.v = masterOpl.v;  
       subOpl.addDataSource(subData); 
       subOpl.generate();
       
@@ -137,7 +151,16 @@ main {
         break;
       }
       // prepare next iteration
-      masterData.Patterns.add(masterData.Patterns.size,1,subOpl.Use.solutionValue);
+      var solution_current = subOpl.x.solutionValue
+      //write(solution_current);
+      for (var mach in Rm) {
+        var cout = 0
+        for (var tache in Rn){
+          cout += solution_current[mach][tache]*c[mach][tache]
+          }
+      	masterData.Patterns.add(masterData.Patterns.size,mach,cout,solution_current[mach]);
+      }      	
+      // writeln(masterData.Patterns);
       masterOpl = new IloOplModel(masterDef,masterCplex);
       masterOpl.addDataSource(masterData);
       masterOpl.generate();
@@ -145,12 +168,6 @@ main {
          subData.end();
       subOpl.end();      
    }
-    
-   // Check solution value
-   if (Math.abs(curr - 46.25)>=0.0001) {
-      status = -1;
-      writeln("Unexpected objective value");
-   }         
 
    subDef.end();
    subCplex.end();
