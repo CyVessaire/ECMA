@@ -357,11 +357,12 @@ function datafile_creation(n,m,a,b,c,res)
             end
         end
         write(io, "];\n")
-        # writing s (paterns)
-        write(io, "Patterns = [\n")
+        # writing s (patterns)
+        write(io, "Patterns = {\n")
         for i in 1:m
-            write(io, "{ < ")
-            write(io, "0 , ")
+            num = i - 1
+            write(io, "< ")
+            write(io, "$num , $i, ")
             cost = 0
             for j in 1:n
                 if res[j] == i
@@ -387,12 +388,12 @@ function datafile_creation(n,m,a,b,c,res)
             end
             write(io, "] ")
             if i == m
-                write(io, "> }\n")
+                write(io, ">\n")
             else
-                write(io, "> },\n")
+                write(io, ">,\n")
             end
         end
-        write(io, "];\n")
+        write(io, "};\n")
         # writing u
         write(io, "u = [ ")
         for i in 1:n
