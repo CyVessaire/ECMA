@@ -54,6 +54,32 @@ function read_data(filename)
     return (n,m,a,b,c)
 end
 
+function evaluate(affectation,c,m,penalty)
+    cost = 0
+    for tache in keys(affectation)
+        if affectation[tache]<= m
+            cost += c[tache, affectation[tache]]
+        else
+            cost += penalty
+        end
+    end
+    return cost
+end
+
+function test_validity(inst,n,m,a,b,c)
+    practical_b = [0 for i in b]
+    for tache in keys(inst)
+        practical_b[inst[tache]] += a[tache, inst[tache]]
+    end
+    verif = true
+    for k in 1:length(b)
+        if practical_b[k] > b[k]
+            verif = false
+        end
+    end
+    return verif
+end
+
 # get the order value
 function get_affect(num, arr, order)
     max_val = maximum(arr)
@@ -68,7 +94,7 @@ function glouton(n,m,a,b,c)
     priority = a.*c
     order = [i for i in 1:n]
     current_b = b
-    affectations = Dict(i => m+1 for i in 1:n)
+    affectations = Dict(i => m for i in 1:n)
     for i in 1:n
         for k in 1:(m-1)
             index = get_affect(i, priority[i,:], k+1)
@@ -81,6 +107,7 @@ function glouton(n,m,a,b,c)
     end
     return affectations
 end
+
 
 # function reorder(order, i, new_pos):
 #     new_order = [x for x in order[1: new_pos-1]]
@@ -130,14 +157,6 @@ function add_virtual_machine(n,m,a,b,c)
     return n, m2, a2, b2, c2
 end
 
-function evaluate(affectation,c)
-    cost = 0
-    for tache in keys(affectation)
-        cost += c[tache, affectation[tache]]
-    end
-    return cost
-end
-
 function calculate_b(b, a, affect)
     new_b = b
     for tache in keys(affect)
@@ -159,7 +178,7 @@ function level1_move!(affectation,current_b, n, m, a, b, c)
                     current_b[mach] -= a[k, mach]
                     modification = true
                     msg = string("    Replacement tache ", k, " de ", affect, " vers ", mach)
-                    println(msg)
+                    #println(msg)
                     break # A verifier
                 end
             end
@@ -191,7 +210,7 @@ function level2_move!(affectation,current_b,n,m,a,b,c)
                             modification = true
                             change = true
                             msg = string("    Echange taches ", k1, " et ", k2, " pour ", affect2, " et ", affect1)
-                            println(msg)
+                            #println(msg)
                         end
                     end
                 end
@@ -232,7 +251,7 @@ function level3_move!(affectation,current_b,n,m,a,b,c)
                                 modification = true
                                 change = true
                                 msg = string("    Rotations taches ", k1, ", ", k2, " et ", k3, " pour ", affect2, ", ", affect3, " et ", affect1)
-                                println(msg)
+                                #println(msg)
                             end
                         elseif potential_gain2 > 0 && potential_gain2 >= potential_gain1
                             possible1 = current_b[affect1] + a[k1, affect1] - a[k2, affect1]
@@ -248,7 +267,7 @@ function level3_move!(affectation,current_b,n,m,a,b,c)
                                 modification = true
                                 change = true
                                 msg = string("    Rotations taches ", k1, ", ", k2, " et ", k3, " pour ", affect3, ", ", affect1, " et ", affect2)
-                                println(msg)
+                                #println(msg)
                             end
                         end
                     end
@@ -264,25 +283,25 @@ function LNS23opt(n_o, m_o, a_o, b_o, c_o; option="vide")
     n,m,a,b,c = add_virtual_machine(n_o,m_o,a_o,b_o,c_o)
     if option == "glouton"
         affectation = glouton(n,m,a,b,c)
-        println(affectation)
-        msg = string("Résultat glouton initial ", evaluate(affectation, c))
+        #println(affectation)
+        msg = string("Résultat glouton initial ", evaluate(affectation, c, m, 10000000))
     else
         affectation = Dict(i => m for i in 1:n)
-        println(affectation)
-        msg = string("Résultat initial ", evaluate(affectation, c))
+        #println(affectation)
+        msg = string("Résultat initial ", evaluate(affectation, c, m, 10000000))
     end
-    println(msg)
+    #println(msg)
     current_b = calculate_b(b, a, affectation)
     current_level = 1
     arret = false
     while !arret
         if current_level == 1
-            println("Optimisation voisinage 1")
+            #println("Optimisation voisinage 1")
             empty_space = level1_move!(affectation, current_b, n, m, a, b, c)
             current_level = 2
         end
         if current_level == 2
-            println("Optimisation voisinage 2")
+            #println("Optimisation voisinage 2")
             echange = level2_move!(affectation, current_b, n, m, a, b, c)
             if echange
                 current_level = 1
@@ -291,7 +310,7 @@ function LNS23opt(n_o, m_o, a_o, b_o, c_o; option="vide")
             end
         end
         if current_level == 3
-            println("Optimisation voisinage 3")
+            #println("Optimisation voisinage 3")
             tournee = level3_move!(affectation, current_b, n, m, a, b, c)
             if tournee
                 current_level = 2
@@ -299,26 +318,14 @@ function LNS23opt(n_o, m_o, a_o, b_o, c_o; option="vide")
                 arret = true
             end
         end
-        msg = string("Résultat courant ", evaluate(affectation, c))
-        println(msg)
+        msg = string("Résultat courant ", evaluate(affectation, c, m, 10000000))
+        #println(msg)
     end
     return affectation
 end
 
-n,m,a,b,c = read_data("GAP/GAP-a05100.dat")
-
-res = LNS23opt(n, m, a, b, c, option="glouton")
-println(res)
-msg = string("Résultat final ", evaluate(res, c))
-println(msg)
-
-res = LNS23opt(n, m, a, b, c)
-println(res)
-msg = string("Résultat final ", evaluate(res, c))
-println(msg)
-
-function datafile_creation(n,m,a,b,c,res)
-    open("test/test.dat", "w") do io
+function datafile_creation(n,m,a,b,c,res, nom_fichier)
+    open(nom_fichier, "w") do io
         # writing n
         write(io, "n = $n;\n")
         # writing m
@@ -409,4 +416,22 @@ function datafile_creation(n,m,a,b,c,res)
     end
 end
 
-datafile_creation(n,m,a,b,c,res)
+source = "GAP-d15900"
+n,m,a,b,c = read_data(string("GAP/", source , ".dat"))
+
+@time res = LNS23opt(n, m, a, b, c, option="glouton")
+println(res)
+msg = string("Résultat final ", evaluate(res, c, m, 10000000))
+println(msg)
+println()
+
+nom_f = string("test/", source, "h1.dat")
+datafile_creation(n,m,a,b,c,res, nom_f)
+
+@time res2 = LNS23opt(n, m, a, b, c)
+println(res)
+msg = string("Résultat final ", evaluate(res2, c, m, 10000000))
+println(msg)
+
+nom_f2 = string("test/", source, "h2.dat")
+datafile_creation(n,m,a,b,c,res2,nom_f2)

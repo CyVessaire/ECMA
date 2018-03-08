@@ -20,7 +20,7 @@ dvar boolean x[Rm][Rn];
 
 
 minimize
-  sum(i in Rn, j in Rm) ((c[j][i] - u[i])* x[j][i] - v[j]);
+  sum(j in Rm) (sum(i in Rn) ((c[j][i] - u[i])* x[j][i]) - v[j]);
 subject to {
   forall( j in Rm )
 	  ctFill:

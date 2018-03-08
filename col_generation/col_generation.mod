@@ -32,7 +32,7 @@ float v[Rm] = ...;
 
 
 // How many of each pattern is to be cut
-dvar float+ Cut[Patterns] in 0..1;
+dvar float Cut[Patterns] in 0..1;
 
 // Minimize cost : here each pattern as the same constant cost so that
 // we minimize the number of rolls used.     
@@ -41,7 +41,6 @@ minimize
     p.cost * Cut[p];
 
 subject to {
-  // Unique constraint in the master model is to cover the item demand.
   forall( i in Rn ) 
     ctTache:
       sum(p in Patterns) 
@@ -59,7 +58,8 @@ tuple r {
    int aff[Rn];
 };
 
-{r} Result = {<p.machine, p.cost ,Cut[p], p.fill> | p in Patterns : Cut[p] > 1e-3};
+{r} Result = {<p.machine, p.cost ,Cut[p], p.fill> | p in Patterns : Cut[p] > -1};
+
 // set dual values used to fill in the sub model.
 execute FillDuals {
   for(var i in Rn) {
@@ -71,11 +71,12 @@ execute FillDuals {
 }
 
 // Output the current result
-execute DISPLAY_RESULT {
-   // writeln(u)
-   // writeln(v)
-   writeln(Result);
-}
+//execute DISPLAY_RESULT {
+//   // writeln(u)
+//   // writeln(v)
+//   writeln(Result.cost);
+//   writeln(Result.cost);
+//}
 
 main {
    var status = 0;
@@ -112,7 +113,7 @@ main {
       best = curr;
       writeln("Solve master.");
       if ( masterCplex.solve() ) {
-        masterOpl.postProcess();
+        //masterOpl.postProcess();
         curr = masterCplex.getObjValue();
         writeln();
         writeln("MASTER OBJECTIVE: ",curr);
@@ -133,6 +134,12 @@ main {
       subData.c = masterOpl.c;
       subData.u = masterOpl.u;
       subData.v = masterOpl.v;  
+      for(var i in masterOpl.Rn) {
+      subData.u[i] = masterOpl.ctTache[i].dual;
+      }
+      for(var j in masterOpl.Rm) {
+        subData.v[j] = masterOpl.ctMach[j].dual;
+      }
       subOpl.addDataSource(subData); 
       subOpl.generate();
       
@@ -140,6 +147,9 @@ main {
       masterOpl.end();
       
       writeln("Solve sub.");
+      subCplex.solve()
+      // prepare next iteration
+      var solution_current = subOpl.x.solutionValue
       if ( subCplex.solve() &&
            subCplex.getObjValue() <= -RC_EPS) {
         writeln();
@@ -150,9 +160,6 @@ main {
         subOpl.end();         
         break;
       }
-      // prepare next iteration
-      var solution_current = subOpl.x.solutionValue
-      //write(solution_current);
       for (var mach in Rm) {
         var cout = 0
         for (var tache in Rn){
